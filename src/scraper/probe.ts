@@ -2,7 +2,13 @@ import { mkdir, writeFile } from 'fs/promises'
 import { join } from 'path'
 import untypedMap from '../serialization-map.json'
 import type { PartType, SerializationMap } from '../types'
-import { detectChallenge, launch, preparePage } from './browser'
+import {
+	detectChallenge,
+	explainNavigationError,
+	isChromeErrorPage,
+	launch,
+	preparePage,
+} from './browser'
 import { BASE_URL, parseArgs } from './config'
 import { extractProducts, readPageCount, ROW_SELECTOR } from './extract'
 import { log, politeDelay } from './log'
@@ -80,23 +86,40 @@ async function main() {
 		say(`# PCPartPicker probe — ${endpoint}`)
 		say(`url: ${url}`)
 
+		let navError: string | null = null
 		const response = await page
 			.goto(url, { waitUntil: 'domcontentloaded' })
 			.catch((error) => {
-				say(`NAVIGATION FAILED: ${error.message}`)
+				navError = error.message
 				return null
 			})
+
+		const html = await page.content().catch(() => '')
+		const reachedSite = !isChromeErrorPage(html, page.url())
 
 		say(`http status: ${response?.status() ?? 'n/a'}`)
 		say(`final url:   ${page.url()}`)
 		say(`title:       ${JSON.stringify(await page.title().catch(() => ''))}`)
 
-		const challenge = await detectChallenge(page)
-		say(`challenge:   ${challenge ?? 'none detected'}`)
+		const challenge = reachedSite ? await detectChallenge(page) : null
+		say(`challenge:   ${challenge ?? (reachedSite ? 'none detected' : 'n/a — page never loaded')}`)
 
-		const html = await page.content().catch(() => '')
 		await writeFile(join(outDir, `${endpoint}-page1.html`), html, 'utf8')
 		say(`html saved:  ${join(outDir, `${endpoint}-page1.html`)} (${html.length} bytes)`)
+
+		// Bail before the selector report. Every selector legitimately misses
+		// on an error page or a challenge, and printing that list would read
+		// as "PCPartPicker changed its markup" when nothing was ever served.
+		if (navError || !reachedSite) {
+			say('')
+			say(`NAVIGATION FAILED: ${navError ?? 'Chromium rendered its network error page'}`)
+			const hint = explainNavigationError(navError ?? '', config.proxy != null)
+			if (hint) say(hint)
+			say('')
+			say('Nothing was served, so no conclusion can be drawn about the markup.')
+			say('The saved HTML is Chromium\'s own error page, not PCPartPicker.')
+			return
+		}
 
 		if (challenge) {
 			say('')

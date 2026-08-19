@@ -146,6 +146,20 @@ export function explainNavigationError(
  * Cloudflare's interstitial. Detecting it explicitly turns the confusing
  * "no .pagination found" timeout into an actionable message.
  */
+/**
+ * Chromium's built-in network error page. It has to be distinguished from a
+ * real response: the selectors all legitimately miss on it, which otherwise
+ * reads as "PCPartPicker changed its markup" when in fact nothing loaded.
+ */
+export function isChromeErrorPage(html: string, url: string): boolean {
+	if (url === 'about:blank') return true
+	return (
+		/id="?main-frame-error/.test(html) ||
+		/jstcache=/.test(html) ||
+		/chrome-error:\/\//.test(url)
+	)
+}
+
 export async function detectChallenge(page: Page): Promise<string | null> {
 	const html = await page.content().catch(() => '')
 	const title = await page.title().catch(() => '')

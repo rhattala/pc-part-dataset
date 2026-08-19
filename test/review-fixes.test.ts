@@ -3,7 +3,7 @@ import { mkdtemp, readFile, rm } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { after, before, describe, it } from 'node:test'
-import { proxyServerArg } from '../src/scraper/browser'
+import { isChromeErrorPage, proxyServerArg } from '../src/scraper/browser'
 import { parseArgs } from '../src/scraper/config'
 import { DriftCollector, normalize } from '../src/scraper/normalize'
 import { SnapshotStore } from '../src/scraper/store'
@@ -160,5 +160,38 @@ describe('outputCsv array quoting', () => {
 
 	it('still renders a numeric array as before', () => {
 		assert.equal(outputCsv([{ speed: [5, 6000] }]).trim().split('\n')[1], '"5,6000"')
+	})
+})
+
+describe('isChromeErrorPage', () => {
+	it('recognises about:blank', () => {
+		assert.equal(isChromeErrorPage('<html></html>', 'about:blank'), true)
+	})
+
+	it('recognises the chrome-error scheme', () => {
+		assert.equal(
+			isChromeErrorPage('<html></html>', 'chrome-error://chromewebdata/'),
+			true
+		)
+	})
+
+	it('recognises the interstitial markup', () => {
+		assert.equal(
+			isChromeErrorPage(
+				'<div id="main-frame-error" jstcache="0">…</div>',
+				'https://pcpartpicker.com/products/memory/'
+			),
+			true
+		)
+	})
+
+	it('does not flag a real page', () => {
+		assert.equal(
+			isChromeErrorPage(
+				'<table><tr class="tr__product"></tr></table>',
+				'https://pcpartpicker.com/products/memory/'
+			),
+			false
+		)
 	})
 })
