@@ -1,0 +1,60 @@
+name: Scrape PCPartPicker
+
+# NOTE: `schedule` does not fire on forked repositories, which is why the
+# previous version of this workflow never ran once. It is kept here for when
+# this repo stops being a fork; until then, use the manual trigger.
+on:
+  schedule:
+    - cron: '0 6 * * 1'
+  workflow_dispatch:
+    inputs:
+      endpoints:
+        description: 'Space-separated part types, or blank for all'
+        required: false
+        default: 'memory motherboard cpu'
+      max_pages:
+        description: 'Cap pages per endpoint (blank for no cap)'
+        required: false
+        default: ''
+
+jobs:
+  scrape:
+    runs-on: ubuntu-latest
+    # A full sweep of every category takes hours; a capped run takes minutes.
+    timeout-minutes: 330
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+
+      - run: npm ci
+
+      # PCPartPicker sits behind Cloudflare and refuses GitHub-hosted runner
+      # IPs. Without a residential endpoint in the SCRAPER_PROXY secret this
+      # job fails at the first navigation, by design — a loud failure beats a
+      # silently empty dataset.
+      - name: Scrape
+        env:
+          SCRAPER_PROXY: ${{ secrets.SCRAPER_PROXY }}
+          SCRAPER_MAX_PAGES: ${{ github.event.inputs.max_pages }}
+        run: |
+          npm run scrape -- ${{ github.event.inputs.endpoints }} \
+            --sandbox=false --concurrency=2 --delay=2000
+
+      - name: Convert to JSONL and CSV
+        if: always()
+        run: npm run output -- data-staging/latest
+
+      # Uploaded rather than committed: a run that partially failed should not
+      # overwrite good data in ./data without someone looking at the report.
+      - name: Upload snapshot
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: scrape-${{ github.run_id }}
+          path: data-staging/runs/
+          retention-days: 14

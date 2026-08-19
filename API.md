@@ -1,7 +1,24 @@
 # API
 
 > **Note**
-> All parts have a `price` property corresponding to the part's price (in USD).
+> Every part carries these properties regardless of category:
+>
+> | Property | Description                                              |
+> | -------- | -------------------------------------------------------- |
+> | `name`   | Product name as PCPartPicker renders it                  |
+> | `price`  | Lowest listed price, in USD, or `null` if none is listed  |
+> | `id`     | PCPartPicker's product id — stable across runs, join key  |
+> | `url`    | Absolute product URL                                     |
+>
+> `id` and `url` are produced by the current scraper. Snapshots in `./data`
+> predate them and only have `name` and `price`.
+
+> **Note**
+> When PCPartPicker adds a spec column that `src/serialization-map.json` does
+> not describe, the scraper keeps the value under a key derived from the
+> label rather than dropping it, and reports the label at the end of the run.
+> So a category may contain properties not listed below; that is the signal
+> to update the map, not a bug.
 
 - [cpu](#cpu)
 - [cpu-cooler](#cpu-cooler)

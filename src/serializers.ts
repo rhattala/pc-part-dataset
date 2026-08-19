@@ -41,6 +41,11 @@ export const customSerializers: Partial<
 
 			const parsedN = parseFloat(n)
 
+			// Without this guard an unparseable capacity yields NaN, which
+			// JSON.stringify writes as `null` — the bad value reaches the
+			// dataset looking exactly like a legitimately absent one.
+			if (!Number.isFinite(parsedN)) return null
+
 			if (unit === 'GB') return parsedN
 
 			return parsedN * 1000
