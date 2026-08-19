@@ -77,8 +77,14 @@ export function parseArgs(argv: string[], env: NodeJS.ProcessEnv): Config {
 
 	for (const arg of argv) {
 		if (arg.startsWith('--')) {
-			const [key, value] = arg.slice(2).split('=', 2)
-			flags.set(key!, value ?? 'true')
+			// Split on the FIRST `=` only, keeping the rest of the value
+			// intact. `split('=', 2)` truncates instead of splitting, which
+			// quietly mangles any proxy password containing an `=`.
+			const body = arg.slice(2)
+			const eq = body.indexOf('=')
+			const key = eq === -1 ? body : body.slice(0, eq)
+			const value = eq === -1 ? 'true' : body.slice(eq + 1)
+			flags.set(key, value)
 		} else {
 			positional.push(arg)
 		}

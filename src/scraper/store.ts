@@ -21,6 +21,18 @@ export class SnapshotStore {
 	readonly runId: string
 	readonly runDir: string
 
+	/**
+	 * Authoritative in-memory checkpoint, loaded once at open. Endpoints run
+	 * concurrently, so re-reading the file on every append would let two
+	 * endpoints read the same state and write back over each other, losing
+	 * pages — and a lost checkpoint entry means a resumed run re-scrapes a
+	 * page whose rows are already in the JSONL, duplicating them.
+	 */
+	private checkpoint: Record<string, number[]> = {}
+
+	/** Serializes checkpoint writes so concurrent appends cannot interleave. */
+	private writeQueue: Promise<void> = Promise.resolve()
+
 	private constructor(
 		private readonly outDir: string,
 		runId: string
@@ -33,6 +45,15 @@ export class SnapshotStore {
 		const runId = resume ?? new Date().toISOString().replace(/[:.]/g, '-')
 		const store = new SnapshotStore(outDir, runId)
 		await mkdir(store.runDir, { recursive: true })
+
+		try {
+			store.checkpoint = JSON.parse(
+				await readFile(store.checkpointPath(), 'utf8')
+			)
+		} catch {
+			store.checkpoint = {}
+		}
+
 		return store
 	}
 
@@ -44,15 +65,19 @@ export class SnapshotStore {
 		return join(this.runDir, `${endpoint}.jsonl`)
 	}
 
-	/**
-	 * Pages already written for each endpoint, so a resumed run can skip them.
-	 */
-	async readCheckpoint(): Promise<Record<string, number[]>> {
-		try {
-			return JSON.parse(await readFile(this.checkpointPath(), 'utf8'))
-		} catch {
-			return {}
-		}
+	/** Pages already written for each endpoint, so a resumed run can skip them. */
+	readCheckpoint(): Record<string, number[]> {
+		return this.checkpoint
+	}
+
+	private flushCheckpoint(): Promise<void> {
+		const snapshot = JSON.stringify(this.checkpoint, null, '\t')
+
+		this.writeQueue = this.writeQueue.then(() =>
+			writeFile(this.checkpointPath(), snapshot, 'utf8')
+		)
+
+		return this.writeQueue
 	}
 
 	async appendPage(endpoint: PartType, page: number, parts: Part[]) {
@@ -62,15 +87,11 @@ export class SnapshotStore {
 		}
 
 		// Checkpoint after the rows are durable, never before.
-		const checkpoint = await this.readCheckpoint()
-		const pages = checkpoint[endpoint] ?? []
+		const pages = this.checkpoint[endpoint] ?? []
 		if (!pages.includes(page)) pages.push(page)
-		checkpoint[endpoint] = pages
-		await writeFile(
-			this.checkpointPath(),
-			JSON.stringify(checkpoint, null, '\t'),
-			'utf8'
-		)
+		this.checkpoint[endpoint] = pages
+
+		await this.flushCheckpoint()
 	}
 
 	/**

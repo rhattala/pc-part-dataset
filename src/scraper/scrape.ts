@@ -10,7 +10,7 @@ import { extractProducts, readPageCount, ROW_SELECTOR } from './extract'
 import { log, politeDelay, withRetry } from './log'
 import { DriftCollector, normalize } from './normalize'
 import type { SnapshotStore } from './store'
-import { validatePart } from './validate'
+import { identityCoverage, validatePart } from './validate'
 
 /** Product id of the first row, used to confirm a page turn actually landed. */
 async function firstRowId(page: Page): Promise<string | null> {
@@ -46,8 +46,8 @@ async function gotoPage(page: Page, endpoint: PartType, pageNumber: number) {
 		window.location.hash = `#page=${n}`
 	}, pageNumber)
 
-	try {
-		await page.waitForFunction(
+	const waitForTurn = () =>
+		page.waitForFunction(
 			(selector, previous) => {
 				const row = document.querySelector(selector)
 				if (!row) return false
@@ -61,13 +61,28 @@ async function gotoPage(page: Page, endpoint: PartType, pageNumber: number) {
 			ROW_SELECTOR,
 			before
 		)
+
+	try {
+		await waitForTurn()
+		return
 	} catch {
-		// Hash routing did not re-render in time — force a real navigation.
-		await page.goto(`${url}#page=${pageNumber}`, {
-			waitUntil: 'networkidle2',
-		})
+		// Hash routing did not re-render in time. Note that re-issuing
+		// `page.goto(url + '#page=N')` here would do nothing at all: the
+		// document is already at that URL, so Chromium treats it as a
+		// same-document navigation and never reloads. Reload explicitly so
+		// the page boots with the fragment already set.
+		await page.reload({ waitUntil: 'networkidle2' })
 		await page.waitForSelector(ROW_SELECTOR)
 	}
+
+	// Confirm the reload actually landed on a different page. Without this a
+	// failed turn silently yields the previous page's rows, which then get
+	// written and checkpointed as page N while the run reports success.
+	const after = await firstRowId(page)
+	if (after !== null && after === before)
+		throw new Error(
+			`page ${pageNumber} did not render: still showing the previous page's rows`
+		)
 }
 
 export async function scrapeEndpoint(
@@ -89,6 +104,7 @@ export async function scrapeEndpoint(
 		missingMappedLabels: [],
 		drift: [],
 		errors: [],
+		identityWarned: false,
 		durationMs: 0,
 	}
 
@@ -187,6 +203,20 @@ export async function scrapeEndpoint(
 				}
 
 				parts.push(part)
+			}
+
+			// If the name-cell markup moves, rows still "succeed" but come back
+			// with no id or url — joinable to nothing. Say so loudly rather
+			// than banking a healthy-looking run full of orphan rows.
+			const coverage = identityCoverage(parts)
+			if (parts.length && coverage.ratio < 0.5 && !report.identityWarned) {
+				report.identityWarned = true
+				report.errors.push(
+					`only ${coverage.withId}/${parts.length} rows on page ` +
+						`${pageNumber} had a product id — the name-cell markup ` +
+						`has probably changed; run \`npm run probe -- ${endpoint}\``
+				)
+				report.status = 'partial'
 			}
 
 			await store.appendPage(endpoint, pageNumber, parts)

@@ -150,7 +150,12 @@ export function normalize(
 	part['price'] =
 		raw.priceText == null || raw.priceText.trim() === ''
 			? null
-			: serializeNumber(raw.priceText)
+			: scrubNaN(
+					serializeNumber(raw.priceText),
+					'price',
+					raw.priceText,
+					warnings
+				)
 
 	const endpointMap = map[endpoint] ?? {}
 
@@ -202,7 +207,14 @@ export function normalize(
 			continue
 		}
 
-		part[field] = genericSerialize(value, serialization)
+		// The numeric path can produce NaN too (`serializeNumber('N/A.')`
+		// parses a lone '.'), so it needs the same guard as the custom one.
+		part[field] = scrubNaN(
+			genericSerialize(value, serialization),
+			`${endpoint}.${field}`,
+			value,
+			warnings
+		)
 	}
 
 	return { part, warnings }

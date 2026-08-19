@@ -16,7 +16,7 @@ async function main() {
 
 	const config = parseArgs(argv, process.env)
 	const store = await SnapshotStore.open(config.outDir, config.resume)
-	const checkpoint = await store.readCheckpoint()
+	const checkpoint = store.readCheckpoint()
 
 	if (config.resume)
 		log.info(

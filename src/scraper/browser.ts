@@ -32,6 +32,25 @@ async function loadPuppeteer() {
 	}
 }
 
+/**
+ * Chromium's `--proxy-server` does not accept embedded credentials — given
+ * `http://user:pass@host:port` it fails to connect entirely. Strip them here;
+ * `preparePage` supplies them through `page.authenticate` instead, which is
+ * the mechanism Chromium actually supports.
+ */
+export function proxyServerArg(proxy: string): string {
+	try {
+		const parsed = new URL(proxy)
+		parsed.username = ''
+		parsed.password = ''
+		// `URL` renders a trailing slash that Chromium does not want.
+		return parsed.toString().replace(/\/$/, '')
+	} catch {
+		// Not URL-shaped (e.g. a bare `host:port`); pass it through untouched.
+		return proxy
+	}
+}
+
 export async function launch(config: Config): Promise<Browser> {
 	const { puppeteer, stealth } = await loadPuppeteer()
 
@@ -42,7 +61,7 @@ export async function launch(config: Config): Promise<Browser> {
 	]
 
 	if (!config.sandbox) args.push('--no-sandbox', '--disable-setuid-sandbox')
-	if (config.proxy) args.push(`--proxy-server=${config.proxy}`)
+	if (config.proxy) args.push(`--proxy-server=${proxyServerArg(config.proxy)}`)
 
 	log.info(
 		`launching chrome (headless=${config.headless} stealth=${stealth} ` +

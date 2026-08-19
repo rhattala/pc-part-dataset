@@ -8,18 +8,22 @@ const NON_PART_FILES = new Set(['report.json', 'checkpoint.json'])
 export const outputJsonLines = (parts: Part[]) =>
 	parts.map((p) => JSON.stringify(p)).join('\n')
 
+/** Wraps a field in quotes only if it needs them, escaping embedded quotes. */
+const quoteIfNeeded = (str: string): string =>
+	str.includes(',') || str.includes('"') || str.includes('\n')
+		? `"${str.replaceAll('"', '""')}"`
+		: str
+
 const serializeCsvValue = (value: any): string => {
 	if (value == null) return ''
 
+	// Flatten to a raw comma-joined string, then quote ONCE. Escaping each
+	// element first and re-wrapping the result double-quotes any element
+	// containing a comma or quote, producing a field no CSV parser can read.
 	if (Array.isArray(value))
-		return `"${value.map((v) => serializeCsvValue(v)).join(',')}"`
+		return quoteIfNeeded(value.map((v) => (v == null ? '' : String(v))).join(','))
 
-	const str = String(value)
-
-	if (str.includes(',') || str.includes('"') || str.includes('\n'))
-		return `"${str.replaceAll('"', '""')}"`
-
-	return str
+	return quoteIfNeeded(String(value))
 }
 
 export const outputCsv = (parts: Part[]) => {

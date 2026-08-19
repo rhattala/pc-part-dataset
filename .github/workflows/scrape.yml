@@ -37,12 +37,16 @@ jobs:
       # IPs. Without a residential endpoint in the SCRAPER_PROXY secret this
       # job fails at the first navigation, by design — a loud failure beats a
       # silently empty dataset.
+      # Inputs go through the environment, never interpolated into the shell:
+      # `${{ github.event.inputs.* }}` in a run block is a script-injection
+      # sink, and SCRAPER_PROXY is in scope here.
       - name: Scrape
         env:
           SCRAPER_PROXY: ${{ secrets.SCRAPER_PROXY }}
           SCRAPER_MAX_PAGES: ${{ github.event.inputs.max_pages }}
+          ENDPOINTS: ${{ github.event.inputs.endpoints }}
         run: |
-          npm run scrape -- ${{ github.event.inputs.endpoints }} \
+          npm run scrape -- $ENDPOINTS \
             --sandbox=false --concurrency=2 --delay=2000
 
       - name: Convert to JSONL and CSV

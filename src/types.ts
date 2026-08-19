@@ -70,6 +70,8 @@ export interface EndpointReport {
 	missingMappedLabels: string[]
 	drift: DriftRecord[]
 	errors: string[]
+	/** Set once when a page came back with almost no product ids. */
+	identityWarned?: boolean
 	durationMs: number
 }
 
