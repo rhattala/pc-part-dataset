@@ -1,22 +1,27 @@
 {
 	"name": "pc-part-scraper",
-	"version": "0.1.0",
+	"version": "0.2.0",
 	"private": true,
 	"scripts": {
-		"start": "ts-node src/scraper.ts",
-		"dev": "ts-node -T src/scraper.ts",
+		"scrape": "ts-node src/scraper/cli.ts",
+		"scrape:dev": "ts-node -T src/scraper/cli.ts",
+		"probe": "ts-node -T src/scraper/probe.ts",
 		"count": "ts-node src/counter.ts",
 		"output": "ts-node src/output.ts",
+		"typecheck": "tsc --noEmit",
+		"test": "node -r ts-node/register --test test/*.test.ts",
 		"zip": "cd data; for dir in json jsonl csv; do zip -r \"${dir}.zip\" \"$dir\" -x \"*.DS_Store\"; done"
 	},
 	"devDependencies": {
-		"ts-node": "^10.9.1",
-		"typescript": "^5.1.6"
+		"@types/node": "^22.10.2",
+		"ts-node": "^10.9.2",
+		"typescript": "^5.7.2"
 	},
 	"dependencies": {
-		"npm": "^11.4.2",
-		"puppeteer": "^20.7.4",
-		"puppeteer-cluster": "^0.23.0",
+		"puppeteer": "^25.8.0",
+		"zod": "^4.4.3"
+	},
+	"optionalDependencies": {
 		"puppeteer-extra": "^3.3.6",
 		"puppeteer-extra-plugin-stealth": "^2.11.2"
 	}

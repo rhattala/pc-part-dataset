@@ -2,58 +2,94 @@ import { mkdir, readFile, readdir, writeFile } from 'fs/promises'
 import { join } from 'path'
 import type { Part } from './types'
 
+/** Bookkeeping files a run directory contains alongside the part data. */
+const NON_PART_FILES = new Set(['report.json', 'checkpoint.json'])
+
 export const outputJsonLines = (parts: Part[]) =>
 	parts.map((p) => JSON.stringify(p)).join('\n')
 
-const serializeCsvValue = (value: any): string => {
-	if (
-		typeof value === 'string' &&
-		(value.includes(',') || value.includes('"'))
-	) {
-		return `"${value.replaceAll('"', '""')}"`
-	} else if (Array.isArray(value)) {
-		return `"${value.map((v) => serializeCsvValue(v)).join(',')}"`
-	}
+/** Wraps a field in quotes only if it needs them, escaping embedded quotes. */
+const quoteIfNeeded = (str: string): string =>
+	str.includes(',') || str.includes('"') || str.includes('\n')
+		? `"${str.replaceAll('"', '""')}"`
+		: str
 
-	return value
+const serializeCsvValue = (value: any): string => {
+	if (value == null) return ''
+
+	// Flatten to a raw comma-joined string, then quote ONCE. Escaping each
+	// element first and re-wrapping the result double-quotes any element
+	// containing a comma or quote, producing a field no CSV parser can read.
+	if (Array.isArray(value))
+		return quoteIfNeeded(value.map((v) => (v == null ? '' : String(v))).join(','))
+
+	return quoteIfNeeded(String(value))
 }
 
 export const outputCsv = (parts: Part[]) => {
-	let csv = ''
-	const keys = Object.keys(parts[0]!)
+	if (!parts.length) return ''
 
-	csv += keys.join(',') + '\n'
+	// Union of every row's keys, in first-seen order. Taking the header from
+	// `parts[0]` alone (and then writing `Object.values(part)` positionally)
+	// silently shifted every column whenever a row had a different key set —
+	// which happens routinely now that unmapped specs are preserved rather
+	// than throwing.
+	const keys: string[] = []
+	const seen = new Set<string>()
 
 	for (const part of parts) {
-		csv += Object.values(part)
-			.map((v) => serializeCsvValue(v))
-			.join(',')
-
-		csv += '\n'
+		for (const key of Object.keys(part)) {
+			if (seen.has(key)) continue
+			seen.add(key)
+			keys.push(key)
+		}
 	}
 
-	return csv
-}
-;(async () => {
-	const dirName = process.argv.slice(2)[0] ?? 'data-staging'
-	const files = await readdir(join(dirName, 'json'))
+	const rows = parts.map((part) =>
+		keys.map((key) => serializeCsvValue(part[key])).join(',')
+	)
 
-	await mkdir(join(dirName, 'csv'))
-	await mkdir(join(dirName, 'jsonl'))
+	return [keys.join(','), ...rows].join('\n') + '\n'
+}
+
+async function main() {
+	// Defaults to whatever `npm run scrape` last produced.
+	const dirName = process.argv.slice(2)[0] ?? 'data-staging/latest'
+
+	// Support both the run-directory layout (`<dir>/cpu.json`) and the older
+	// `<dir>/json/cpu.json` layout that `./data` still uses.
+	const entries = await readdir(dirName, { withFileTypes: true })
+	const hasJsonSubdir = entries.some(
+		(e) => e.isDirectory() && e.name === 'json'
+	)
+	const sourceDir = hasJsonSubdir ? join(dirName, 'json') : dirName
+	const files = hasJsonSubdir ? await readdir(sourceDir) : entries.map((e) => e.name)
+
+	await mkdir(join(dirName, 'csv'), { recursive: true })
+	await mkdir(join(dirName, 'jsonl'), { recursive: true })
 
 	for (const file of files) {
 		if (!file.endsWith('.json')) continue
+		if (NON_PART_FILES.has(file)) continue
 
-		const raw = await readFile(join(dirName, 'json', file))
-		const parts: Part[] = await JSON.parse(raw.toString())
+		const raw = await readFile(join(sourceDir, file), 'utf8')
+		const parts: Part[] = JSON.parse(raw)
 
-		const jsonl = outputJsonLines(parts)
 		await writeFile(
 			join(dirName, 'jsonl', file.replace('.json', '.jsonl')),
-			jsonl
+			outputJsonLines(parts)
 		)
 
-		const csv = outputCsv(parts)
-		await writeFile(join(dirName, 'csv', file.replace('.json', '.csv')), csv)
+		await writeFile(
+			join(dirName, 'csv', file.replace('.json', '.csv')),
+			outputCsv(parts)
+		)
 	}
-})()
+}
+
+if (require.main === module) {
+	main().catch((error) => {
+		console.error(error)
+		process.exitCode = 1
+	})
+}

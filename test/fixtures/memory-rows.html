@@ -1,0 +1,109 @@
+<!--
+	Trimmed reproduction of a PCPartPicker /products/memory/ table body.
+
+	Deliberately includes the cases that broke the previous scraper:
+	  - row 2 carries a spec label ("Heat Spreader") that
+	    serialization-map.json does not know about
+	  - row 3 has an empty price cell
+	  - row 4 has no product anchor at all
+	  - row 5 wraps its spec value in an extra element rather than leaving it
+	    as a bare text node, which defeats a `childNodes[1]` read
+-->
+<div class="pagination">
+	<ul>
+		<li>1</li>
+		<li>2</li>
+		<li>3</li>
+		<li>17</li>
+	</ul>
+</div>
+
+<table>
+	<tbody>
+		<tr class="tr__product">
+			<td class="td__name">
+				<a href="/product/4W9RsY/gskill-flare-x5-32-gb-ddr5-6000">
+					<div class="td__nameWrapper">
+						<p>G.Skill Flare X5 32 GB (2 x 16 GB) DDR5-6000 CL30 Memory</p>
+					</div>
+				</a>
+			</td>
+			<td class="td__spec"><h6 class="specLabel">Speed</h6>DDR5-6000</td>
+			<td class="td__spec"><h6 class="specLabel">Modules</h6>2 x 16 GB</td>
+			<td class="td__spec"><h6 class="specLabel">Price / GB</h6>$2.968</td>
+			<td class="td__spec"><h6 class="specLabel">Color</h6>Black</td>
+			<td class="td__spec"><h6 class="specLabel">First Word Latency</h6>10 ns</td>
+			<td class="td__spec"><h6 class="specLabel">CAS Latency</h6>30</td>
+			<td class="td__rating">(482)</td>
+			<td class="td__price">$94.99</td>
+		</tr>
+
+		<tr class="tr__product">
+			<td class="td__name">
+				<a href="/product/zzzKHx/corsair-vengeance-32-gb-ddr5-5600">
+					<div class="td__nameWrapper">
+						<p>Corsair Vengeance 32 GB (2 x 16 GB) DDR5-5600 CL36 Memory</p>
+					</div>
+				</a>
+			</td>
+			<td class="td__spec"><h6 class="specLabel">Speed</h6>DDR5-5600</td>
+			<td class="td__spec"><h6 class="specLabel">Modules</h6>2 x 16 GB</td>
+			<td class="td__spec"><h6 class="specLabel">Price / GB</h6>$2.500</td>
+			<td class="td__spec"><h6 class="specLabel">Color</h6>Black</td>
+			<td class="td__spec"><h6 class="specLabel">First Word Latency</h6>12.857 ns</td>
+			<td class="td__spec"><h6 class="specLabel">CAS Latency</h6>36</td>
+			<td class="td__spec"><h6 class="specLabel">Heat Spreader</h6>Yes</td>
+			<td class="td__rating">(1204)</td>
+			<td class="td__price">$79.99</td>
+		</tr>
+
+		<tr class="tr__product">
+			<td class="td__name">
+				<a href="/product/QQQ123/kingston-fury-beast-16-gb-ddr4-3200">
+					<div class="td__nameWrapper">
+						<p>Kingston FURY Beast 16 GB (2 x 8 GB) DDR4-3200 CL16 Memory</p>
+					</div>
+				</a>
+			</td>
+			<td class="td__spec"><h6 class="specLabel">Speed</h6>DDR4-3200</td>
+			<td class="td__spec"><h6 class="specLabel">Modules</h6>2 x 8 GB</td>
+			<td class="td__spec"><h6 class="specLabel">Price / GB</h6></td>
+			<td class="td__spec"><h6 class="specLabel">Color</h6>Black</td>
+			<td class="td__spec"><h6 class="specLabel">First Word Latency</h6>10 ns</td>
+			<td class="td__spec"><h6 class="specLabel">CAS Latency</h6>16</td>
+			<td class="td__rating"></td>
+			<td class="td__price"></td>
+		</tr>
+
+		<tr class="tr__product">
+			<td class="td__name">
+				<div class="td__nameWrapper">
+					<p>Unlinked Mystery Kit 8 GB DDR4-2400</p>
+				</div>
+			</td>
+			<td class="td__spec"><h6 class="specLabel">Speed</h6>DDR4-2400</td>
+			<td class="td__spec"><h6 class="specLabel">Modules</h6>1 x 8 GB</td>
+			<td class="td__spec"><h6 class="specLabel">Color</h6>Green</td>
+			<td class="td__price">$19.99</td>
+		</tr>
+
+		<tr class="tr__product">
+			<td class="td__name">
+				<a href="/product/WRAP99/teamgroup-t-force-48-gb-ddr5-7200">
+					<div class="td__nameWrapper">
+						<p>TEAMGROUP T-Force 48 GB (2 x 24 GB) DDR5-7200 CL34 Memory</p>
+					</div>
+				</a>
+			</td>
+			<td class="td__spec">
+				<h6 class="specLabel">Speed</h6><span class="value">DDR5-7200</span>
+			</td>
+			<td class="td__spec">
+				<h6 class="specLabel">Modules</h6><span class="value">2 x 24 GB</span>
+			</td>
+			<td class="td__spec"><h6 class="specLabel">Color</h6>Silver</td>
+			<td class="td__spec"><h6 class="specLabel">CAS Latency</h6>34</td>
+			<td class="td__price">$189.99</td>
+		</tr>
+	</tbody>
+</table>
