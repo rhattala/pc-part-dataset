@@ -24,6 +24,15 @@ jobs:
     timeout-minutes: 330
 
     steps:
+      - name: Validate scraper proxy
+        env:
+          SCRAPER_PROXY: ${{ secrets.SCRAPER_PROXY }}
+        run: |
+          if [[ -z "$SCRAPER_PROXY" ]]; then
+            echo "::error::SCRAPER_PROXY repository secret is missing or empty"
+            exit 1
+          fi
+
       - uses: actions/checkout@v4
 
       - uses: actions/setup-node@v4
