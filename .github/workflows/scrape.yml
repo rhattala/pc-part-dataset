@@ -1,11 +1,24 @@
 name: Scrape PCPartPicker
 
-# NOTE: `schedule` does not fire on forked repositories, which is why the
-# previous version of this workflow never ran once. It is kept here for when
-# this repo stops being a fork; until then, use the manual trigger.
+# Manual trigger only, deliberately.
+#
+# PCPartPicker sits behind Cloudflare, which refuses GitHub-hosted runner IPs.
+# With no residential endpoint in the SCRAPER_PROXY secret, every category comes
+# back a "Just a moment..." challenge with zero rows, so a scheduled run cannot
+# succeed. It can only produce a weekly red X for a cause nobody can fix from
+# inside CI, and a recurring failure everyone learns to ignore is worse than no
+# schedule at all.
+#
+# The note that used to sit here claimed `schedule` never fires on a fork, and
+# that the workflow had therefore never run. That was wrong. The weekly cron
+# fired on 2026-08-24 and spent 30 minutes retrying 24 categories, 3 attempts
+# each, before failing.
+#
+# Once SCRAPER_PROXY is set, restore the trigger by adding this above
+# `workflow_dispatch:` and confirm a manual run goes green first:
+#     schedule:
+#       - cron: '0 6 * * 1'
 on:
-  schedule:
-    - cron: '0 6 * * 1'
   workflow_dispatch:
     inputs:
       endpoints:
